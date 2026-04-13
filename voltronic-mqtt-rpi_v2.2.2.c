@@ -1,8 +1,5 @@
-// voltronic-mqtt-rpi v2.2.2 (Personal build for Luca - Bugfix release)
-// Authors: Luca De Giovanni & Google AI Studio
-// Date: July 28, 2024
-// Description: Drop-in replacement for Solpiplog, replicating its MQTT topic structure.
-//              Fixes a buffer overflow warning found during compilation.
+// voltronic-mqtt-rpi v2.3.0-mqtt-fix
+// Description: v2.3.0 with MQTT auto-reconnect.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,8 +13,8 @@
 #define INVERTER_VID 0x0665
 #define INVERTER_PID 0x5161
 
-// Global state variable: determines if split-write for commands > 8 bytes is needed.
 int use_split_write = 0;
+MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
 
 // --- DATA STRUCTURES ---
 typedef struct { float grid_voltage, grid_frequency, output_voltage, output_frequency; int output_apparent_power, output_active_power, output_load_percent, bus_voltage; float battery_voltage; int battery_charge_current, battery_capacity_percent, inverter_heat_sink_temp; float pv1_input_current, pv1_input_voltage; float battery_voltage_scc; int battery_discharge_current; char device_status[9]; int battery_voltage_offset, eeprom_version, pv1_power; char device_status_2[4]; } PIGSData;
@@ -26,7 +23,27 @@ typedef struct { float grid_rating_voltage, grid_rating_current, ac_output_ratin
 
 // --- HELPER FUNCTIONS ---
 unsigned short crc16(const unsigned char *buf, size_t len) { unsigned short crc = 0; while (len--) { crc ^= *buf++ << 8; for (int i = 0; i < 8; i++) crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1; } return crc; }
-void publish_metric(MQTTClient client, const char* base_topic, const char* sub_topic, const char* metric_name, const char* value_str) { if (value_str == NULL || strlen(value_str) == 0) return; char full_topic[256]; sprintf(full_topic, "%s/%s/%s", base_topic, sub_topic, metric_name); MQTTClient_message pubmsg = MQTTClient_message_initializer; pubmsg.payload = (void*)value_str; pubmsg.payloadlen = strlen(value_str); pubmsg.qos = 1; pubmsg.retained = 1; MQTTClient_publishMessage(client, full_topic, &pubmsg, NULL); }
+
+int ensure_mqtt_connected(MQTTClient client, const char* host) {
+    if (MQTTClient_isConnected(client)) return 1;
+    printf("MQTT connection lost. Attempting to reconnect to %s...\n", host);
+    int rc;
+    if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
+        fprintf(stderr, "Failed to reconnect, return code %d\n", rc);
+        return 0;
+    }
+    printf("Successfully reconnected to MQTT broker.\n");
+    return 1;
+}
+
+void publish_metric(MQTTClient client, const char* base_topic, const char* sub_topic, const char* metric_name, const char* value_str) { 
+    if (value_str == NULL || strlen(value_str) == 0) return; 
+    if (!MQTTClient_isConnected(client)) return;
+    char full_topic[256]; sprintf(full_topic, "%s/%s/%s", base_topic, sub_topic, metric_name); 
+    MQTTClient_message pubmsg = MQTTClient_message_initializer; 
+    pubmsg.payload = (void*)value_str; pubmsg.payloadlen = strlen(value_str); pubmsg.qos = 1; pubmsg.retained = 1; 
+    MQTTClient_publishMessage(client, full_topic, &pubmsg, NULL); 
+}
 
 // Robust query function that handles HID packet splitting
 int query_inverter(hid_device *handle, const char *command, char *response, int is_test) {
@@ -81,12 +98,12 @@ int main(int argc, char* argv[]) {
     sleep(2);
 
     MQTTClient client;
-    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
     char mqtt_address[100]; sprintf(mqtt_address, "tcp://%s:1883", mqtt_host);
     MQTTClient_create(&client, mqtt_address, "voltronic-rpi-client", MQTTCLIENT_PERSISTENCE_NONE, NULL);
     conn_opts.keepAliveInterval = 20; conn_opts.cleansession = 1; conn_opts.username = mqtt_user; conn_opts.password = mqtt_pass;
-    if (MQTTClient_connect(client, &conn_opts) != MQTTCLIENT_SUCCESS) { fprintf(stderr, "Failed to connect to MQTT broker.\n"); return 1; }
-    printf("Connected to MQTT broker: %s\n", mqtt_host);
+    
+    printf("Initial connection to MQTT broker: %s\n", mqtt_host);
+    ensure_mqtt_connected(client, mqtt_host);
     
     char response[MAX_BUFFER_SIZE];
     char value_buffer[50];
@@ -116,6 +133,8 @@ int main(int argc, char* argv[]) {
     // --- MAIN POLLING LOOP ---
     while (1) {
         printf("Starting reading cycle...\n");
+        ensure_mqtt_connected(client, mqtt_host);
+        
         PIRIData piri_data = {0}; PIGS2Data pigs2_data = {0}; char qmod_char = ' ';
         char qid_response[32] = "N/A"; PIGSData pigs_data = {0};
         
