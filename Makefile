@@ -5,7 +5,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g -O2
 
 # Source file and target executables
-SRC = voltronic-mqtt-rpi_v2.2.2.c
+SRC = voltronic-mqtt-rpi_v2.c
 TARGET_DYNAMIC = voltronic-mqtt
 TARGET_VENUS = voltronic-rpi-venus
 

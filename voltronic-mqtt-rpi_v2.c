@@ -1,4 +1,4 @@
-// voltronic-mqtt-rpi v2.3.0-mqtt-fix
+// voltronic-mqtt-rpi v2.3.0
 // Description: v2.3.0 with MQTT auto-reconnect.
 
 #include <stdio.h>
