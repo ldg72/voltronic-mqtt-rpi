@@ -1,12 +1,11 @@
-# Makefile for the Voltronic MQTT RPi project
+# Makefile for the Voltronic MQTT RPi project — v2.2.2
 
 # Compiler and flags
 CC = gcc
-# CFLAGS: -Wall and -Wextra enable most warnings, -g adds debug symbols, -O2 optimizes the code
 CFLAGS = -Wall -Wextra -g -O2
 
 # Source file and target executables
-SRC = voltronic-mqtt2.1.2.c
+SRC = voltronic-mqtt-rpi_v2.2.2.c
 TARGET_DYNAMIC = voltronic-mqtt
 TARGET_VENUS = voltronic-rpi-venus
 
@@ -22,25 +21,20 @@ LDFLAGS_STATIC_DEPS = -lusb-1.0 -ludev -lpthread -lrt
 
 
 # --- Build Rules ---
-
-# .PHONY tells make that these are command names, not files
 .PHONY: all clean venus
 
-# Default command (typing 'make' will run this)
-# Builds the standard dynamic version for Raspberry Pi OS
+# Default: dynamic build for Raspberry Pi OS
 all: $(TARGET_DYNAMIC)
 
-# Rule to build the dynamic version
 $(TARGET_DYNAMIC): $(SRC)
 	$(CC) $(CFLAGS) $(SRC) -o $(TARGET_DYNAMIC) $(LDFLAGS_DYNAMIC)
 	@echo "\nSuccessfully built dynamic target: $(TARGET_DYNAMIC)"
 
-# Rule to build the semi-static version for Venus OS
+# Semi-static build for Venus OS (32-bit ARMv7)
 venus: $(SRC)
 	$(CC) $(CFLAGS) $(SRC) -o $(TARGET_VENUS) $(HIDAPI_STATIC) $(PAHO_STATIC) $(LDFLAGS_STATIC_DEPS)
 	@echo "\nSuccessfully built semi-static target for Venus OS: $(TARGET_VENUS)"
 
-# Rule to clean up compiled files
 clean:
 	rm -f $(TARGET_DYNAMIC) $(TARGET_VENUS)
 	@echo "Cleaned up build files."
