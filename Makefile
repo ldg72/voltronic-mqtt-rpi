@@ -1,4 +1,4 @@
-# Makefile for the Voltronic MQTT RPi project — v2.2.2
+# Makefile for the Voltronic MQTT RPi project — v2.4.0
 
 # Compiler and flags
 CC = gcc
@@ -38,3 +38,11 @@ venus: $(SRC)
 clean:
 	rm -f $(TARGET_DYNAMIC) $(TARGET_VENUS)
 	@echo "Cleaned up build files."
+
+# --- Docker Cross-Compilation (to be run on Mac/PC) ---
+# Usage: make docker OR make docker-venus
+docker:
+	docker run --rm -v "$$(pwd):/app" voltronic-compiler make all
+
+docker-venus:
+	docker run --rm -v "$$(pwd):/app" voltronic-compiler make venus

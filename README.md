@@ -8,7 +8,7 @@ The program is designed to run on low-resource systems like the Raspberry Pi, wi
 
 It reads key data from the inverter (status, voltages, currents, power) and publishes it to an MQTT broker, allowing for easy integration into home automation systems like Home Assistant or VenusOS dashboards.
 
-## Project Status (v2.3.0 — Current Release)
+## Project Status (v2.4.0 — Current Release)
 
 -   [x] Communicates with the inverter via its USB HID interface.
 -   [x] **MQTT Auto-Reconnect**: Automatically detects broker disconnection and attempts to reconnect without stopping the inverter polling.
@@ -18,9 +18,15 @@ It reads key data from the inverter (status, voltages, currents, power) and publ
 -   [x] Reads data from **QPIGS**, **QPIGS2**, **QPIRI**, **QMOD**, **QID** commands.
 -   [x] Publishes all data in **Solpiplog-compatible MQTT topic structure** (`.../pip/acin`, `.../pip/battv`, etc.) for seamless drop-in replacement.
 -   [x] Computes and publishes `totalsolarw` (PV1 + PV2 combined power).
+-   [x] **Optional Victron SmartShunt VE.Direct input** with screen output for live testing.
 -   [x] Can be compiled in semi-static mode for maximum portability on Venus OS.
 
 ### Changelog
+
+#### v2.4.0 (Current — SmartShunt bring-up)
+- **New**: Added optional `VE.Direct` serial input parameter for a Victron SmartShunt.
+- **New**: Parses SmartShunt text-mode frames and prints the main values to the terminal.
+- **Note**: SmartShunt data is currently displayed on screen only and is not yet published to MQTT.
 
 #### v2.3.0 (Current — MQTT Robustness)
 - **New**: Implemented automatic MQTT reconnection logic.
@@ -53,19 +59,44 @@ gcc voltronic-mqtt-rpi_v2.c -o voltronic-mqtt -lhidapi-libusb -lpaho-mqtt3c
 ```
 
 ### Compilation for Venus OS (Semi-Static Linking)
+This is the recommended method for portability on Venus OS (32-bit ARMv7).
+
 ```bash
 make venus
 ```
 
+## Development on Mac/PC (Cross-Compilation via Docker)
+
+If you are developing on macOS or Windows and want to compile for Raspberry Pi without setting up a local toolchain, you can use **Docker**. This ensures a consistent build environment identical to Raspberry Pi OS.
+
+### 1. Build the compiler environment (One-time setup)
+Ensure Docker Desktop is running and execute:
+```bash
+docker build -t voltronic-compiler .
+```
+
+### 2. Compile using Docker
+Instead of standard `make`, use the following commands from your host machine:
+
+*   **Standard build**: `make docker`
+*   **Static build (Venus OS)**: `make docker-venus`
+
+This will spark up a virtual Debian ARMv7 container, compile your code, and output the binary directly into your project folder.
+
 ## Usage
 
 ```bash
-sudo ./voltronic-mqtt <mqtt_host> <mqtt_user> <mqtt_pass> <base_topic> <interval_sec>
+sudo ./voltronic-mqtt <mqtt_host> <mqtt_user> <mqtt_pass> <base_topic> <interval_sec> [vedirect_device]
 ```
 
 **Example:**
 ```bash
 sudo ./voltronic-mqtt 192.168.1.100 myuser mypassword Inverter 5
+```
+
+With SmartShunt on `/dev/ttyUSB0`:
+```bash
+sudo ./voltronic-mqtt 192.168.1.100 myuser mypassword Inverter 5 /dev/ttyUSB0
 ```
 
 This will publish topics like:
@@ -76,6 +107,7 @@ This will publish topics like:
 
 ## To-Do and Future Development
 -   [ ] HID reconnect on inverter communication error (currently requires restart).
+-   [ ] Add MQTT publishing for SmartShunt VE.Direct metrics after field validation.
 -   [ ] Decode `device_status` bitfield to publish individual boolean states.
 -   [ ] Optional systemd service file for auto-start on boot.
 
