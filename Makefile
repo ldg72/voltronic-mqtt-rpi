@@ -7,7 +7,8 @@ CFLAGS = -Wall -Wextra -g -O2
 # Source file and target executables
 SRC = voltronic-mqtt-rpi_v2.c
 TARGET_DYNAMIC = voltronic-mqtt
-TARGET_VENUS = voltronic-rpi-venus
+TARGET_VENUS = voltronic-mqtt
+# (Keeping venus target name in makefile for backward compatibility, but outputting same name)
 
 # --- Libraries ---
 # Static library paths (adjust if your system differs)
